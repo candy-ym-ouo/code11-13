@@ -185,6 +185,17 @@ export interface FamilyStats {
   byCategory: { category: Category; count: number }[];
 }
 
+export interface BookJob {
+  jobId: string;
+  status: 'queued' | 'running' | 'done' | 'failed';
+  progress: number;
+  lastError: string | null;
+  createdAt: string;
+  finishedAt: string | null;
+  downloadUrl: string | null;
+  result: { entries?: number; chapters?: number; media?: number; bytes?: number } | null;
+}
+
 export interface Page<T> {
   items: T[];
   nextCursor: string | null;

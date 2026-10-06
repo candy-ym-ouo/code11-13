@@ -81,6 +81,7 @@ export const JOB_TYPES = [
   'media_thumbnail',
   'media_waveform',
   'export_build',
+  'book_build',
   'trash_purge',
   'storage_gc',
 ] as const;
@@ -123,6 +124,8 @@ export const AUDIT_ACTIONS = [
   'share.revoke',
   'export.create',
   'export.download',
+  'book.create',
+  'book.download',
   'access.denied',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

@@ -9,6 +9,7 @@ import { inspectDocument } from '../media/document';
 import { putBuffer, remove } from '../storage/local';
 import { makeTmpPath } from '../services/mediaService';
 import { buildExportZip } from '../services/exportService';
+import { buildBookZip } from '../services/bookService';
 
 type Handler = (job: Job) => Promise<Record<string, unknown>>;
 
@@ -87,6 +88,11 @@ async function handleWaveform(job: Job): Promise<Record<string, unknown>> {
 async function handleExport(job: Job): Promise<Record<string, unknown>> {
   const result = await buildExportZip(job);
   return { items: result.items, media: result.media, bytes: result.bytes, file: result.file };
+}
+
+async function handleBookBuild(job: Job): Promise<Record<string, unknown>> {
+  const result = await buildBookZip(job);
+  return { entries: result.entries, chapters: result.chapters, media: result.media, bytes: result.bytes, file: result.file };
 }
 
 /** 回收站保留期到期后彻底删除（含磁盘文件）。 */
@@ -179,6 +185,7 @@ const HANDLERS: Record<string, Handler> = {
   media_thumbnail: handleThumbnail,
   media_waveform: handleWaveform,
   export_build: handleExport,
+  book_build: handleBookBuild,
   trash_purge: handleTrashPurge,
   storage_gc: handleStorageGc,
 };

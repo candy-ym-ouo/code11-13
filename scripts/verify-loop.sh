@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 端到端闭环验证：用真实 HTTP 请求走完
 # 注册 → 建家庭 → 建人物 → 建档 → 上传图片/音频 → 发布 → 补充故事 → 邀请成员 →
-# 权限边界 → 私密条目隔离 → 导出 ZIP → 审计留痕 → 回收站。
+# 权限边界 → 私密条目隔离 → 导出 ZIP → 审计留痕 → 回收站 → 家史册排版导出。
 #
 # 用法：API=http://127.0.0.1:4000 bash scripts/verify-loop.sh
 set -euo pipefail
@@ -51,12 +51,12 @@ echo "== 家中物品来历册 · 闭环验证 =="
 echo "API: $API"
 
 # ---------- 1. 健康检查 ----------
-step "1/10 健康检查"
+step "1/11 健康检查"
 code=$(curl -sS -o "$WORK/body" -w '%{http_code}' "$API/healthz"); expect "$code" 200 "/healthz 存活"
 code=$(curl -sS -o "$WORK/body" -w '%{http_code}' "$API/readyz");  expect "$code" 200 "/readyz 依赖就绪（DB/存储/worker）"
 
 # ---------- 2. 注册首个用户（成为系统管理员） ----------
-step "2/10 注册与登录"
+step "2/11 注册与登录"
 EMAIL_A="owner-$RUN_ID@example.com"
 code=$(req POST "$V1/auth/register" "$JAR_A" "{\"email\":\"$EMAIL_A\",\"password\":\"family2026\",\"displayName\":\"大姐\"}")
 if [ "$code" = "201" ]; then
@@ -86,7 +86,7 @@ code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST -b "$JAR_A" -H 'X-CSRF-To
 expect "$code" 403 "CSRF 不匹配时拒绝刷新"
 
 # ---------- 3. 建家庭 ----------
-step "3/10 创建家庭"
+step "3/11 创建家庭"
 code=$(req POST "$V1/families" "$JAR_A" "{\"name\":\"老张家-$RUN_ID\"}" "$TOKEN_A")
 expect "$code" 201 "创建家庭"
 FID=$(json 'd.family.id' < "$WORK/body")
@@ -96,7 +96,7 @@ ROLE=$(json 'd.myRole' < "$WORK/body")
 if [ "$ROLE" = "owner" ]; then ok "创建者角色为 owner"; else bad "创建者角色应为 owner，实际 $ROLE"; fi
 
 # ---------- 4. 人物 + 条目 ----------
-step "4/10 建立来源人物与物品条目"
+step "4/11 建立来源人物与物品条目"
 code=$(req POST "$V1/families/$FID/people" "$JAR_A" '{"name":"外公","relation":"外公","birthYear":1932}' "$TOKEN_A")
 expect "$code" 201 "新建来源人物「外公」"
 PID=$(json 'd.person.id' < "$WORK/body")
@@ -136,7 +136,7 @@ for spec in "souvenir|结婚时的搪瓷缸" "receipt|1983 年的自行车发票
 done
 
 # ---------- 5. 媒体上传 ----------
-step "5/10 上传图片与音频"
+step "5/11 上传图片与音频"
 node -e '
 const fs=require("fs");
 const png=Buffer.from("iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAHElEQVQ4jWNgYGD4z4AEGAOxGkVg1CgCowYAAJ8kE/0kZ0QpAAAAAElFTkSuQmCC","base64");
@@ -181,7 +181,7 @@ code=$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $TOKEN_
 expect "$code" 206 "音频原始文件支持 Range 请求（可拖动播放）"
 
 # ---------- 6. 发布 + 补充故事 ----------
-step "6/10 发布条目与家人补充故事"
+step "6/11 发布条目与家人补充故事"
 code=$(req POST "$V1/families/$FID/items/$IID/publish" "$JAR_A" "" "$TOKEN_A")
 expect "$code" 200 "草稿发布为已发布"
 
@@ -198,7 +198,7 @@ VER_COUNT=$(json 'd.versions.length' < "$WORK/body")
 if [ "$VER_COUNT" -ge 2 ]; then ok "版本历史已记录（$VER_COUNT 个版本）"; else bad "版本历史异常：$VER_COUNT"; fi
 
 # ---------- 7. 邀请家人 + 权限边界 ----------
-step "7/10 邀请家人与权限边界"
+step "7/11 邀请家人与权限边界"
 code=$(req POST "$V1/families/$FID/invites" "$JAR_A" '{"role":"viewer","expiresInDays":7,"maxUses":1,"note":"给小妹"}' "$TOKEN_A")
 expect "$code" 201 "生成只读成员的邀请码"
 INVITE_CODE=$(json 'd.invite.code' < "$WORK/body")
@@ -231,7 +231,7 @@ PRIVATE_ID=$(json 'd.item.id' < "$WORK/body")
 if [ -n "$PRIVATE_ID" ]; then ok "创建 private 条目"; else bad "private 条目创建失败"; fi
 
 # ---------- 8. 检索与时间轴 ----------
-step "8/10 检索与时间轴"
+step "8/11 检索与时间轴"
 code=$(req GET "$V1/families/$FID/items?q=%E6%A8%9F%E6%9C%A8" "$JAR_A" "" "$TOKEN_A")
 expect "$code" 200 "关键词检索（樟木）"
 HITS=$(json 'd.items.length' < "$WORK/body")
@@ -249,7 +249,7 @@ if [ "$GROUPS" -ge 1 ]; then ok "时间轴返回 $GROUPS 个时段分组"; else 
 code=$(req GET "$V1/families/$FID/stats" "$JAR_A" "" "$TOKEN_A"); expect "$code" 200 "家庭统计"
 
 # ---------- 9. 分享链接 ----------
-step "9/10 对外分享链接"
+step "9/11 对外分享链接"
 code=$(req POST "$V1/families/$FID/share-links" "$JAR_A" "{\"itemIds\":[\"$IID\"],\"expiresInDays\":7,\"password\":\"zhangjia\",\"label\":\"给二叔看看\"}" "$TOKEN_A")
 expect "$code" 201 "创建带密码的分享链接"
 SHARE_TOKEN=$(json 'd.shareLink.token' < "$WORK/body")
@@ -268,7 +268,7 @@ code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: applica
 expect "$code" 401 "密码错误被拒绝"
 
 # ---------- 10. 导出 / 审计 / 回收站 ----------
-step "10/10 导出、审计与回收站"
+step "10/11 导出、审计与回收站"
 code=$(req POST "$V1/families/$FID/exports" "$JAR_A" "" "$TOKEN_A")
 expect "$code" 202 "创建全量导出任务"
 JOB_ID=$(json 'd.jobId' < "$WORK/body")
@@ -303,6 +303,38 @@ code=$(req GET "$V1/families/$FID/items/trash" "$JAR_A" "" "$TOKEN_A")
 TRASH_N=$(json 'd.items.length' < "$WORK/body")
 if [ "$TRASH_N" -ge 1 ]; then ok "回收站中可查（$TRASH_N 条）"; else bad "回收站查询异常"; fi
 code=$(req POST "$V1/families/$FID/items/$IID/restore" "$JAR_A" "" "$TOKEN_A"); expect "$code" 200 "从回收站恢复"
+
+# ---------- 11. 家史册 ----------
+step "11/11 家史册（静态书排版导出）"
+code=$(req POST "$V1/families/$FID/books" "$JAR_A" '{"volumes":["era","person"],"includeArchived":true}' "$TOKEN_A")
+expect "$code" 202 "创建家史册生成任务"
+BOOK_JOB=$(json 'd.jobId' < "$WORK/body")
+
+BOOK_STATUS="queued"
+for _ in $(seq 1 60); do
+  sleep 1
+  req GET "$V1/families/$FID/books/$BOOK_JOB" "$JAR_A" "" "$TOKEN_A" > /dev/null
+  BOOK_STATUS=$(json 'd.job.status' < "$WORK/body")
+  [ "$BOOK_STATUS" = "done" ] && break
+  [ "$BOOK_STATUS" = "failed" ] && break
+done
+if [ "$BOOK_STATUS" = "done" ]; then ok "家史册生成完成"; else bad "家史册任务状态：$BOOK_STATUS"; fi
+
+code=$(curl -sS -o "$WORK/book.zip" -w '%{http_code}' -b "$JAR_A" -H "Authorization: Bearer $TOKEN_A" "$V1/families/$FID/books/$BOOK_JOB/download")
+expect "$code" 200 "下载家史册 ZIP"
+BOOK_LIST=$(unzip -l "$WORK/book.zip" 2>/dev/null || true)
+if grep -q "index.html" <<<"$BOOK_LIST"; then ok "书内含封面与总目录"; else bad "书缺少 index.html"; fi
+if grep -q "era/" <<<"$BOOK_LIST"; then ok "书内含编年卷章节（按年代）"; else bad "书缺少编年卷"; fi
+if grep -q "people/" <<<"$BOOK_LIST"; then ok "书内含人物卷章节（按人物）"; else bad "书缺少人物卷"; fi
+if grep -q "entries/" <<<"$BOOK_LIST"; then ok "书内含条目页"; else bad "书缺少条目页"; fi
+if grep -q "index/entries.html" <<<"$BOOK_LIST"; then ok "书内含自动生成的索引"; else bad "书缺少索引页"; fi
+if grep -q "book.json" <<<"$BOOK_LIST"; then ok "书内含机器可读清单 book.json"; else bad "书缺少 book.json"; fi
+if grep -qE "media/(src|web)/" <<<"$BOOK_LIST"; then ok "书内含媒体文件（离线可播放）"; else bad "书缺少媒体文件"; fi
+
+# 条目页保留系统内原始条目链接；私密条目不收录
+ENTRY_HTML=$(unzip -p "$WORK/book.zip" "*/entries/0001-*.html" 2>/dev/null || true)
+if grep -q "/f/$FID/items/$IID" <<<"$ENTRY_HTML"; then ok "条目页保留系统原始条目链接"; else bad "条目页缺少原始链接"; fi
+if unzip -p "$WORK/book.zip" "*/book.json" 2>/dev/null | grep -q "$PRIVATE_ID"; then bad "私密条目被收录进家史册"; else ok "私密条目未进书（只收录全家可见内容）"; fi
 
 # ---------- 汇总 ----------
 printf '\n\033[1m结果：%d 项通过，%d 项失败\033[0m\n' "$PASS" "$FAIL"

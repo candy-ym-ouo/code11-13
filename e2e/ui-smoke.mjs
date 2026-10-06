@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 浏览器端冒烟测试：用系统 Chrome 打开真实页面，走一遍「注册 → 建家庭 → 记物品 → 看详情 → 时间轴」。
+ * 浏览器端冒烟测试：用系统 Chrome 打开真实页面，走一遍「注册 → 建家庭 → 记物品 → 看详情 → 时间轴 → 家史册」。
  * 只依赖 playwright-core + 本机 Chrome，不需要下载浏览器内核。
  *
  * 用法：
@@ -63,13 +63,13 @@ const runId = `${Date.now()}`;
 const email = `ui-${runId}@example.com`;
 
 try {
-  step('1/6 打开登录页');
+  step('1/7 打开登录页');
   await page.goto(`${WEB}/login`, { waitUntil: 'networkidle' });
   if (await page.locator('h1', { hasText: '家中物品来历册' }).isVisible()) ok('登录页渲染正常');
   else bad('登录页没有渲染出标题');
   await page.screenshot({ path: `${SHOT_DIR}/01-login.png` });
 
-  step('2/6 注册新账号');
+  step('2/7 注册新账号');
   await page.getByRole('link', { name: '创建管理员账号' }).click();
   await page.waitForURL('**/register');
   await page.getByLabel('你的称呼').fill('测试大姐');
@@ -109,7 +109,7 @@ try {
   }
   await page.screenshot({ path: `${SHOT_DIR}/02-families.png` });
 
-  step('3/6 建立家庭空间');
+  step('3/7 建立家庭空间');
   if (await page.getByRole('heading', { name: '我的家庭' }).isVisible().catch(() => false)) {
     const createButton = page.getByRole('button', { name: /建立.*家庭空间/ }).first();
     if (await createButton.isVisible().catch(() => false)) {
@@ -126,7 +126,7 @@ try {
   }
   await page.screenshot({ path: `${SHOT_DIR}/03-home.png` });
 
-  step('4/6 记录一件物品');
+  step('4/7 记录一件物品');
   await page.getByRole('button', { name: '记一件物品' }).first().click();
   await page.waitForURL('**/items/new');
   await page.getByLabel('名称').fill('外公的樟木箱');
@@ -146,7 +146,7 @@ try {
   await page.waitForTimeout(800);
   ok('草稿已发布');
 
-  step('5/6 详情页与时间展示');
+  step('5/7 详情页与时间展示');
   const title = await page.locator('.detail-title').innerText();
   if (title.includes('樟木箱')) ok('详情页显示物品名称');
   else bad(`详情页名称异常：${title}`);
@@ -159,7 +159,7 @@ try {
   else bad('故事正文没有渲染');
   await page.screenshot({ path: `${SHOT_DIR}/05-detail.png`, fullPage: true });
 
-  step('6/6 时间轴与移动端布局');
+  step('6/7 时间轴与移动端布局');
   await page.getByRole('link', { name: '时间轴' }).click();
   await page.waitForURL('**/timeline');
   await page
@@ -177,6 +177,22 @@ try {
   if (overflow <= 1) ok('360px 宽度下无横向溢出');
   else bad(`移动端出现横向溢出 ${overflow}px`);
   await page.screenshot({ path: `${SHOT_DIR}/07-mobile.png`, fullPage: true });
+
+  step('7/7 家史册排版导出');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.getByRole('link', { name: '家史册' }).click();
+  await page.waitForURL('**/book');
+  const bookText = await page.locator('body').innerText();
+  if (bookText.includes('排版选项') && bookText.includes('收录范围')) ok('家史册页展示排版选项与收录说明');
+  else bad('家史册页没有完整渲染');
+  await page.getByRole('button', { name: '生成家史册' }).click();
+  try {
+    await page.getByRole('link', { name: /下载 ZIP/ }).waitFor({ state: 'visible', timeout: 45000 });
+    ok('家史册生成完成，出现下载链接');
+  } catch {
+    bad('家史册生成超时或失败');
+  }
+  await page.screenshot({ path: `${SHOT_DIR}/08-book.png`, fullPage: true });
 
   // 允许的预期失败：favicon 请求、未登录时探测会话的 401、以及分享页探测
   const expected = (r) =>

@@ -8,6 +8,7 @@ import {
   PRECISIONS,
   VISIBILITIES,
 } from './enums';
+import { BOOK_VOLUMES } from './book';
 
 const trimmed = (max: number) => z.string().trim().min(1).max(max);
 const optionalText = (max: number) => z.string().trim().max(max).optional().nullable();
@@ -133,6 +134,13 @@ export const createShareLinkSchema = z.object({
   label: optionalText(60),
 });
 
+/** 家史册生成参数：书名可空（默认「<家庭名>家史册」），至少收录一卷。 */
+export const bookBuildSchema = z.object({
+  title: optionalText(60),
+  volumes: z.array(z.enum(BOOK_VOLUMES)).min(1, '至少收录一卷').default(['era', 'person']),
+  includeArchived: z.boolean().default(true),
+});
+
 export const listItemsQuerySchema = z.object({
   q: z.string().trim().max(120).optional(),
   category: z.enum(CATEGORIES).optional(),
@@ -163,6 +171,7 @@ export type CreateFamilyInput = z.infer<typeof createFamilySchema>;
 export type CreateInviteInput = z.infer<typeof createInviteSchema>;
 export type PersonInput = z.infer<typeof personSchema>;
 export type CreateShareLinkInput = z.infer<typeof createShareLinkSchema>;
+export type BookBuildInput = z.infer<typeof bookBuildSchema>;
 
 /** 去 HTML 标签，得到用于检索的纯文本（服务端还会用 DOMPurify 做一次白名单净化）。 */
 export function htmlToText(html: string | null | undefined): string {
