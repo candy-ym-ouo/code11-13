@@ -154,6 +154,18 @@ export const updateMediaSchema = z.object({
   setCover: z.boolean().optional(),
 });
 
+/**
+ * 家史册生成选项。
+ * 默认只收录「已发布 + 已归档」且全家可见的条目：
+ * 草稿还没整理好、限阅条目（仅自己 / 指定成员）不该悄悄进一本会传给家人的书。
+ */
+export const bookBuildSchema = z.object({
+  title: z.string().trim().min(1, '书名不能为空').max(80).optional(),
+  includeDrafts: z.boolean().default(false),
+  /** 同时收录限阅条目（仅自己可见、指定成员可见） */
+  includeRestricted: z.boolean().default(false),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type CreateItemInput = z.infer<typeof createItemSchema>;
@@ -163,6 +175,7 @@ export type CreateFamilyInput = z.infer<typeof createFamilySchema>;
 export type CreateInviteInput = z.infer<typeof createInviteSchema>;
 export type PersonInput = z.infer<typeof personSchema>;
 export type CreateShareLinkInput = z.infer<typeof createShareLinkSchema>;
+export type BookBuildInput = z.infer<typeof bookBuildSchema>;
 
 /** 去 HTML 标签，得到用于检索的纯文本（服务端还会用 DOMPurify 做一次白名单净化）。 */
 export function htmlToText(html: string | null | undefined): string {

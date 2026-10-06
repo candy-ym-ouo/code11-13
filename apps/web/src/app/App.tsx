@@ -17,6 +17,7 @@ import { MembersPage } from '../features/members/MembersPage';
 import { AuditPage } from '../features/audit/AuditPage';
 import { SettingsPage } from '../features/settings/SettingsPage';
 import { TrashPage } from '../features/items/TrashPage';
+import { BookPage } from '../features/book/BookPage';
 import { ShareViewPage } from '../features/share/ShareViewPage';
 
 function NotFoundPage() {
@@ -90,6 +91,14 @@ export function App() {
           element={
             <RequireFamily roles={['owner', 'admin']}>
               <TrashPage />
+            </RequireFamily>
+          }
+        />
+        <Route
+          path="book"
+          element={
+            <RequireFamily roles={['owner', 'admin']}>
+              <BookPage />
             </RequireFamily>
           }
         />

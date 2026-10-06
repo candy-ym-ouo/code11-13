@@ -96,6 +96,7 @@ enum JobType {
   media_thumbnail
   media_waveform
   export_build
+  book_build
   trash_purge
   storage_gc
 }
